@@ -1,10 +1,26 @@
 const express = require('express');
-const { Pool } = require('pg');
+const cors = require('cors');
 const axios = require('axios');
+const { Pool } = require('pg');
+require('dotenv').config();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ✅ Hugging Face similarity scoring function
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://your-frontend.onrender.com'], // replace with actual Render frontend URL
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+
+app.use(express.json());
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
 async function getSimilarityScore(text1, text2) {
   try {
     const response = await axios.post(
@@ -21,22 +37,13 @@ async function getSimilarityScore(text1, text2) {
         }
       }
     );
-    return response.data[0]; // returns a number between 0–1
-  } catch (error) {
-    console.error('Hugging Face API error:', error.response?.data || error.message);
+    return response.data[0];
+  } catch (err) {
+    console.error('Hugging Face error:', err.message);
     return 0;
   }
 }
 
-// ✅ Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-
-app.use(express.json());
-
-// ✅ Signup
 app.post('/api/signup', async (req, res) => {
   const { email, password, role } = req.body;
   try {
@@ -46,12 +53,11 @@ app.post('/api/signup', async (req, res) => {
     );
     res.status(201).json({ message: 'User created!', user: result.rows[0] });
   } catch (err) {
-    console.error('Signup error:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Signup error:', err.message);
+    res.status(500).json({ error: 'Signup failed' });
   }
 });
 
-// ✅ Login
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -65,85 +71,73 @@ app.post('/api/login', async (req, res) => {
       res.status(401).json({ error: 'Invalid credentials' });
     }
   } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Login error:', err.message);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
-// ✅ Create profile
 app.post('/api/profile', async (req, res) => {
   const { user_id, skills, interests, city } = req.body;
-
   try {
+    const skillsArray = typeof skills === 'string' ? skills.split(',').map(s => s.trim()) : skills;
+    const interestsArray = typeof interests === 'string' ? interests.split(',').map(i => i.trim()) : interests;
+
     const result = await pool.query(
       'INSERT INTO profiles (user_id, skills, interests, city) VALUES ($1, $2, $3, $4) RETURNING *',
-      [user_id, skills, interests, city]
+      [user_id, skillsArray, interestsArray, city]
     );
-
     res.status(201).json({ message: 'Profile created!', profile: result.rows[0] });
   } catch (err) {
-    console.error('Profile creation error:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Profile error:', err.message);
+    res.status(500).json({ error: 'Profile creation failed' });
   }
 });
 
-// ✅ AI Match route
 app.get('/api/match/ai/:id', async (req, res) => {
   const userId = parseInt(req.params.id);
-
   try {
-    const { rows: userResult } = await pool.query(
-      'SELECT * FROM profiles WHERE user_id = $1',
-      [userId]
-    );
+    const userQuery = await pool.query('SELECT * FROM profiles WHERE user_id = $1', [userId]);
 
-    if (userResult.length === 0) {
-      return res.status(404).json({ error: 'Profile not found' });
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'User profile not found' });
     }
 
-    const user = userResult[0];
-    const { rows: candidates } = await pool.query(
-      'SELECT * FROM profiles WHERE user_id != $1',
-      [userId]
-    );
+    const user = userQuery.rows[0];
+    const candidatesQuery = await pool.query('SELECT * FROM profiles WHERE user_id != $1', [userId]);
 
     const matches = [];
 
-    for (const candidate of candidates) {
-      const skillText = `Skills: ${user.skills.join(', ')}`
-      const interestText = `Interests: ${user.interests.join(', ')}`
+    for (const candidate of candidatesQuery.rows) {
+      try {
+        const skillScore = await getSimilarityScore(
+          `Skills: ${user.skills.join(', ')}`,
+          `Skills: ${candidate.skills.join(', ')}`
+        );
+        const interestScore = await getSimilarityScore(
+          `Interests: ${user.interests.join(', ')}`,
+          `Interests: ${candidate.interests.join(', ')}`
+        );
+        const cityScore = user.city === candidate.city ? 1 : 0;
+        const matchScore = (skillScore + interestScore + cityScore) / 3;
 
-      const candidateSkillText = `Skills: ${candidate.skills.join(', ')}`
-      const candidateInterestText = `Interests: ${candidate.interests.join(', ')}`
-
-      const skillScore = await getSimilarityScore(skillText, candidateSkillText);
-      const interestScore = await getSimilarityScore(interestText, candidateInterestText);
-      const cityScore = user.city === candidate.city ? 1 : 0;
-
-      const matchScore = (skillScore + interestScore + cityScore) / 3;
-
-      matches.push({
-        user_id: candidate.user_id,
-        match_score: matchScore.toFixed(2),
-        shared_city: cityScore === 1,
-      });
+        matches.push({
+          user_id: candidate.user_id,
+          match_score: matchScore.toFixed(2),
+          shared_city: cityScore === 1
+        });
+      } catch (matchErr) {
+        console.error('Error calculating match for candidate:', candidate.user_id, matchErr.message);
+      }
     }
 
     matches.sort((a, b) => b.match_score - a.match_score);
-
     res.json({ matches });
   } catch (err) {
-    console.error('AI match error:', err);
-    res.status(500).json({ error: 'AI matching failed' });
+    console.error('AI match route error:', err.message);
+    res.status(500).json({ error: 'AI match route failed' });
   }
 });
 
-// ✅ Home route
-app.get('/', (req, res) => {
-  res.send('✅ Deployed code is working!');
-});
-
-// ✅ Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
