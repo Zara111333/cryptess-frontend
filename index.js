@@ -11,8 +11,12 @@ const app = express();
 const port = 3001;
 
 // 🔐 CORS FIX
+const cors = require('cors');
+
+
+// 🔧 CORS FIX FOR RENDER
 const corsOptions = {
-  origin: ['http://localhost:5173', 'https://my-auth-app-qdbi.onrender.com'], // include your actual frontend domain if deployed
+  origin: ['http://localhost:5173', 'https://my-auth-app-qdbi.onrender.com'],
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
