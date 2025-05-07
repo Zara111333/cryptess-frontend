@@ -24,6 +24,7 @@ export default function ProfileForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        mode: 'cors', // Explicitly handle CORS
       });
 
       const data = await response.json();
