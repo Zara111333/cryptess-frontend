@@ -20,30 +20,34 @@ export default function ProfileForm() {
     };
 
     try {
-      const response = await fetch('https://my-auth-app-qdbi.onrender.com/api/profile', {
+      const baseUrl = import.meta.env.VITE_API_URL;
+      console.log('🔗 API URL being used:', baseUrl);
+
+      const response = await fetch(`${baseUrl}/api/profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         mode: 'cors', // Explicitly handle CORS
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage('Profile created!');
-        navigate(`/match/${userId}`);
-      } else {
-        setMessage(data.error || 'Error creating profile');
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create profile');
       }
+
+      setMessage('Profile created!');
+      navigate(`/match/${userId}`);
     } catch (err) {
-      console.error(err);
+      console.error('❌ Profile creation error:', err);
       setMessage('Something went wrong.');
     }
   };
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-purple-700 mb-4">👤 Create Your Profile</h2>
+      <h2 className="text-xl font-semibold text-purple-700 mb-4">
+        👤 Create Your Profile
+      </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"

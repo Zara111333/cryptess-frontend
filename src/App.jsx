@@ -15,7 +15,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/profile" element={<ProfileForm />} />
-          <Route path="/match/:id" element={<MatchResults />} />
+<Route path="/match/:userId" element={<MatchResults />} />
         </Routes>
       </div>
     </Router>
