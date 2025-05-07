@@ -1,58 +1,29 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const { Pool } = require('pg');
-const dotenv = require('dotenv');
-const axios = require('axios');
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { Pool } from 'pg';
+import aiMatch from './utils.js';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-// ✅ CORS Setup using env whitelist
+// CORS config
 const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'];
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST'],
-  credentials: true,
-}));
+app.use(express.json());
 
-app.use(bodyParser.json());
-
-// ✅ PostgreSQL Pool
+// Database setup
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: {
+    rejectUnauthorized: false, // only for development; remove for production with cert
+  },
 });
 
-// ✅ Hugging Face Scoring Function
-async function getSimilarityScore(text1, text2) {
-  const response = await axios.post(
-    'https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2',
-    {
-      inputs: {
-        source_sentence: text1,
-        sentences: [text2],
-      },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.HF_API_KEY}`,
-      },
-    }
-  );
-  return response.data[0];
-}
-
-// ✅ /api/profile Route
+// Routes
 app.post('/api/profile', async (req, res) => {
   const { user_id, skills, interests, city } = req.body;
 
@@ -61,10 +32,20 @@ app.post('/api/profile', async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
-      'INSERT INTO profiles (user_id, skills, interests, city) VALUES ($1, $2, $3, $4) RETURNING *',
-      [user_id, JSON.stringify(skills), JSON.stringify(interests), city]
-    );
+    const query = `
+      INSERT INTO profiles (user_id, skills, interests, city)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *;
+    `;
+
+    const values = [
+      user_id,
+      JSON.stringify(skills),
+      JSON.stringify(interests),
+      city,
+    ];
+
+    const result = await pool.query(query, values);
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -73,37 +54,29 @@ app.post('/api/profile', async (req, res) => {
   }
 });
 
-// ✅ /api/match/ai/:userId Route
 app.get('/api/match/ai/:userId', async (req, res) => {
-  const userId = req.params.userId;
-
   try {
-    const { rows: allProfiles } = await pool.query('SELECT * FROM profiles');
-    const targetUser = allProfiles.find(p => p.user_id == userId);
+    const { userId } = req.params;
 
-    if (!targetUser) return res.status(404).json({ error: 'User not found' });
+    const allUsers = await pool.query('SELECT * FROM profiles WHERE user_id != $1', [userId]);
+    const currentUser = await pool.query('SELECT * FROM profiles WHERE user_id = $1', [userId]);
 
-    const scores = [];
-
-    for (const profile of allProfiles) {
-      if (profile.user_id == userId) continue;
-
-      const input1 = `${targetUser.skills} ${targetUser.interests}`;
-      const input2 = `${profile.skills} ${profile.interests}`;
-
-      const score = await getSimilarityScore(input1, input2);
-      scores.push({ ...profile, match_score: score });
+    if (currentUser.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    scores.sort((a, b) => b.match_score - a.match_score);
-    res.json(scores.slice(0, 5)); // Top 5 matches
+    const matches = await aiMatch(currentUser.rows[0], allUsers.rows);
+    res.json(matches);
   } catch (err) {
-    console.error('Error matching:', err);
-    res.status(500).json({ error: 'Matching failed' });
+    console.error('Match error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// ✅ Start Server
+app.get('/', (req, res) => {
+  res.send('Server is up and running 🚀');
+});
+
 app.listen(port, () => {
-  console.log(`🚀 Server running at http://localhost:${port}`);
+  console.log(`Server is running on port ${port}`);
 });
