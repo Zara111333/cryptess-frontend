@@ -60,12 +60,12 @@ export default function ProfileForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
   <input
-    type="text"
-    value={userId}
-    readOnly
-    placeholder="User ID loading..."
-    className="w-full px-3 py-2 border rounded bg-gray-100"
-  />
+  type="text"
+  value={userId}
+  readOnly
+  placeholder="User ID loading..."
+  className="w-full px-3 py-2 border rounded bg-gray-100"
+/>
   <input
     type="text"
     placeholder="Skills (comma separated)"
