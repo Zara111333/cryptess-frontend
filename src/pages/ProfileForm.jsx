@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../utils/supabaseClient'; // adjust the path if needed
 
 export default function ProfileForm() {
-  const [userId, setUserId] = useState('');
   const [skills, setSkills] = useState('');
   const [interests, setInterests] = useState('');
   const [city, setCity] = useState('');
@@ -12,8 +12,19 @@ export default function ProfileForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // ✅ Get current user from Supabase
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setMessage('User not logged in.');
+      return;
+    }
+
     const body = {
-      user_id: Number(userId),
+      user_id: user.id,
       skills: skills.split(',').map((s) => s.trim()),
       interests: interests.split(',').map((i) => i.trim()),
       city,
@@ -34,8 +45,8 @@ export default function ProfileForm() {
         throw new Error(err.error || 'Failed to create profile');
       }
 
-      setMessage('Profile created!');
-      navigate(`/match/${userId}`);
+      setMessage('✅ Profile created!');
+      navigate(`/match/${user.id}`);
     } catch (err) {
       console.error('❌ Profile creation error:', err);
       setMessage('Something went wrong.');
@@ -48,14 +59,6 @@ export default function ProfileForm() {
         👤 Create Your Profile
       </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          placeholder="User ID (e.g. 1)"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          required
-          className="w-full px-3 py-2 border rounded"
-        />
         <input
           type="text"
           placeholder="Skills (comma separated)"
