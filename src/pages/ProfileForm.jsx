@@ -55,32 +55,47 @@ export default function ProfileForm() {
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold text-purple-700 mb-4">👤 Create Your Profile</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
-  <input
-  type="text"
-  value={userId}
-  readOnly
-  placeholder="User ID loading..."
-  className="w-full px-3 py-2 border rounded bg-gray-100"
-/>
-  <input
-    type="text"
-    placeholder="Skills (comma separated)"
-    value={skills}
-    onChange={(e) => setSkills(e.target.value)}
-    required
-    className="w-full px-3 py-2 border rounded"
-  />
-  ...
-</form>
-        <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition">
-          Continue ➡️
-        </button>
-      </form>
-      {message && <p className="mt-4 text-sm text-purple-800">{message}</p>}
-    </div>
-  );
-}
+  <div>
+    <h2 className="text-xl font-semibold text-purple-700 mb-4">👤 Create Your Profile</h2>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <input
+        type="text"
+        value={userId}
+        readOnly
+        placeholder="User ID loading..."
+        className="w-full px-3 py-2 border rounded bg-gray-100"
+      />
+      <input
+        type="text"
+        placeholder="Skills (comma separated)"
+        value={skills}
+        onChange={(e) => setSkills(e.target.value)}
+        required
+        className="w-full px-3 py-2 border rounded"
+      />
+      <input
+        type="text"
+        placeholder="Interests (comma separated)"
+        value={interests}
+        onChange={(e) => setInterests(e.target.value)}
+        required
+        className="w-full px-3 py-2 border rounded"
+      />
+      <input
+        type="text"
+        placeholder="City"
+        value={city}
+        onChange={(e) => setCity(e.target.value)}
+        required
+        className="w-full px-3 py-2 border rounded"
+      />
+      <button
+        type="submit"
+        className="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition"
+      >
+        Continue ➡️
+      </button>
+    </form>
+    {message && <p className="mt-4 text-sm text-purple-800">{message}</p>}
+  </div>
+);
