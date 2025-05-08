@@ -15,13 +15,17 @@ export default function ProfileForm() {
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user?.id) {
-        setUserId(data.user.id);
-      }
-    });
-  }, []);
+ useEffect(() => {
+  supabase.auth.getUser().then(({ data }) => {
+    console.log("🔍 Supabase user data:", data); // Add this line
+    if (data?.user?.id) {
+      setUserId(data.user.id);
+      console.log("✅ Set userId:", data.user.id); // Confirm it's a UUID
+    } else {
+      console.warn("⚠️ No user found, make sure you're logged in!");
+    }
+  });
+}, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
