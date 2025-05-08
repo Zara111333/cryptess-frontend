@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 
+// ✅ Supabase client setup using environment variables
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -15,23 +16,21 @@ export default function ProfileForm() {
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
- useEffect(() => {
-  supabase.auth.getUser().then(({ data }) => {
-    console.log("🔍 Supabase user data:", data); // Add this line
-    if (data?.user?.id) {
-      setUserId(data.user.id);
-      console.log("✅ Set userId:", data.user.id); // Confirm it's a UUID
-    } else {
-      console.warn("⚠️ No user found, make sure you're logged in!");
-    }
-  });
-}, []);
+  // ✅ Automatically fetch logged-in user’s UUID
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) {
+        setUserId(data.user.id);
+      }
+    });
+  }, []);
 
+  // ✅ Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const body = {
-      user_id: userId, // now it's a UUID string
+      user_id: userId, // UUID string
       skills: skills.split(',').map((s) => s.trim()),
       interests: interests.split(',').map((i) => i.trim()),
       city,
@@ -59,47 +58,52 @@ export default function ProfileForm() {
   };
 
   return (
-  <div>
-    <h2 className="text-xl font-semibold text-purple-700 mb-4">👤 Create Your Profile</h2>
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <input
-        type="text"
-        value={userId}
-        readOnly
-        placeholder="User ID loading..."
-        className="w-full px-3 py-2 border rounded bg-gray-100"
-      />
-      <input
-        type="text"
-        placeholder="Skills (comma separated)"
-        value={skills}
-        onChange={(e) => setSkills(e.target.value)}
-        required
-        className="w-full px-3 py-2 border rounded"
-      />
-      <input
-        type="text"
-        placeholder="Interests (comma separated)"
-        value={interests}
-        onChange={(e) => setInterests(e.target.value)}
-        required
-        className="w-full px-3 py-2 border rounded"
-      />
-      <input
-        type="text"
-        placeholder="City"
-        value={city}
-        onChange={(e) => setCity(e.target.value)}
-        required
-        className="w-full px-3 py-2 border rounded"
-      />
-      <button
-        type="submit"
-        className="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition"
-      >
-        Continue ➡️
-      </button>
-    </form>
-    {message && <p className="mt-4 text-sm text-purple-800">{message}</p>}
-  </div>
-);
+    <div>
+      <h2 className="text-xl font-semibold text-purple-700 mb-4">👤 Create Your Profile</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* ✅ Read-only UUID field auto-filled from Supabase */}
+        <input
+          type="text"
+          value={userId}
+          readOnly
+          placeholder="User ID loading..."
+          className="w-full px-3 py-2 border rounded bg-gray-100"
+        />
+
+        <input
+          type="text"
+          placeholder="Skills (comma separated)"
+          value={skills}
+          onChange={(e) => setSkills(e.target.value)}
+          required
+          className="w-full px-3 py-2 border rounded"
+        />
+        <input
+          type="text"
+          placeholder="Interests (comma separated)"
+          value={interests}
+          onChange={(e) => setInterests(e.target.value)}
+          required
+          className="w-full px-3 py-2 border rounded"
+        />
+        <input
+          type="text"
+          placeholder="City"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          required
+          className="w-full px-3 py-2 border rounded"
+        />
+
+        <button
+          type="submit"
+          className="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition"
+        >
+          Continue ➡️
+        </button>
+      </form>
+
+      {message && <p className="mt-4 text-sm text-purple-800">{message}</p>}
+    </div>
+  );
+}
