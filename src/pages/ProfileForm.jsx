@@ -23,7 +23,7 @@ export default function ProfileForm() {
       const baseUrl = import.meta.env.VITE_API_URL;
       console.log('🔗 API URL being used:', baseUrl);
 
-      const response = await fetch(`${baseUrl}/api/profile`, {
+      const response = await fetch(`https://my-auth-app-qdbl.onrender.com/api/profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
